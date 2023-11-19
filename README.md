@@ -2,6 +2,14 @@
 
 `neo-trim` is a Neovim plugin written designed to highlight and trim trailing whitespace.
 
+Detect and trim whitespace with `TrimWhitespace` command.
+
+![](gifs/TrimWhitespace.gif)
+
+Or automatically trim it with `:w`.
+
+![](gifs/write.gif)
+
 ## Features
 
 - Automatically trims trailing whitespace on saving files.
