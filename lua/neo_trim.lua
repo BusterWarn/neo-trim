@@ -9,6 +9,10 @@ M.config = {
     exclude_auto_trimming_for_languages = {},
 }
 
+--- Checks if a given filetype is in the provided exclusion list.
+-- @param filetype The filetype to check.
+-- @param exclude_list The list of filetypes to exclude.
+-- @return `true` if the filetype is in the exclude list, `false` otherwise.
 local function is_excluded(filetype, exclude_list)
   for _, ft in ipairs(exclude_list) do
     if ft == filetype then
@@ -40,6 +44,23 @@ function M.show_trailing_whitespace()
   end
 
   vim.diagnostic.set(M.ns, 0, diagnostics, {})
+end
+
+local function validate_input_config(config)
+    if config.exclude_diagnostics_for_languages ~= nil and type(config.exclude_diagnostics_for_languages) ~= 'table' then
+        vim.api.nvim_err_writeln("neo-trim: 'exclude_diagnostics_for_languages' should be a table. Currently it is: '" .. type(config.exclude_diagnostics_for_languages) .. "'.")
+        config.exclude_diagnostics_for_languages = {}
+    end
+
+    if config.exclude_auto_trimming_for_languages ~= nil and type(config.exclude_auto_trimming_for_languages) ~= 'table' then
+        vim.api.nvim_err_writeln("neo-trim: 'exclude_auto_trimming_for_languages' should be a table. Currently it is: '" .. type(config.exclude_auto_trimming_for_languages) .. "'.")
+        config.exclude_auto_trimming_for_languages = {}
+    end
+
+    if config.auto_trim_on_write ~= nil and type(config.auto_trim_on_write) ~= 'boolean' then
+        vim.api.nvim_err_writeln("neo-trim: 'auto_trim_on_write' should be a boolean. Currently it is: '" .. type(config.auto_trim_on_write) .. "'.")
+        config.auto_trim_on_write = true
+    end
 end
 
 function M.trim_trailing_whitespace()
@@ -78,6 +99,8 @@ local function setup_auto_trimming()
 end
 
 function M.setup(user_config)
+  user_config = user_config or {}
+  validate_input_config(user_config)
   M.config = vim.tbl_extend("force", M.config, user_config or {})
 
   setup_diagnostics()
