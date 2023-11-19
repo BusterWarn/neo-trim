@@ -2,8 +2,27 @@ local M = {}
 
 M.ns = vim.api.nvim_create_namespace('neo-trim')
 
--- The diagnostic function that would be called on events like BufWrite, BufEnter, etc.
+M.config = {
+    trim_command_name = "TrimWhitespace",
+    auto_trim_on_write = true,
+    exclude_diagnostics_for_languages = {},
+    exclude_auto_trimming_for_languages = {},
+}
+
+local function is_excluded(filetype, exclude_list)
+  for _, ft in ipairs(exclude_list) do
+    if ft == filetype then
+      return true
+    end
+  end
+  return false
+end
+
 function M.show_trailing_whitespace()
+  if is_excluded(vim.bo.filetype, M.config.exclude_diagnostics_for_languages) then
+    return
+  end
+
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local diagnostics = {}
 
@@ -15,7 +34,7 @@ function M.show_trailing_whitespace()
         col = s - 1,
         end_col = e,
         message = 'Trailing whitespace',
-        severity = vim.diagnostic.severity.WARN,
+        severity = vim.diagnostic.severity.HINT,
       })
     end
   end
@@ -23,8 +42,11 @@ function M.show_trailing_whitespace()
   vim.diagnostic.set(M.ns, 0, diagnostics, {})
 end
 
--- Function to trim trailing whitespace
 function M.trim_trailing_whitespace()
+  if is_excluded(vim.bo.filetype, M.config.exclude_auto_trimming_for_languages) then
+    return
+  end
+
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   for i, line in ipairs(lines) do
     local trimmed_line = line:gsub("%s+$", "")
@@ -34,29 +56,36 @@ function M.trim_trailing_whitespace()
   end
 end
 
--- Autocommand to trim whitespace before saving a file
-function M.setup_autocommands()
-  print("M.setup_autocommands")
-
+local function setup_diagnostics()
   vim.api.nvim_create_autocmd({"BufWrite", "BufEnter", "TextChanged", "InsertLeave"}, {
+    pattern = "*",
+    callback = M.show_trailing_whitespace,
+  })
+end
+
+local function setup_user_command(trim_command_name)
+  if trim_command_name == "" then
+    return
+  end
+  vim.api.nvim_create_user_command(trim_command_name, M.trim_trailing_whitespace, {})
+end
+
+local function setup_auto_trimming()
+  vim.api.nvim_create_autocmd("BufWritePre", {
     pattern = "*",
     callback = M.trim_trailing_whitespace
   })
-
-  -- -- Command to trim whitespace
-  vim.api.nvim_create_user_command('TrimWhitespace', M.trim_trailing_whitespace, {})
-  -- Configure the signs
-  vim.fn.sign_define("DiagnosticSignWarn", {text = "H", texthl = "DiagnosticSignWarn"})
-
-  -- Apply the squiggly underline highlight
-  vim.cmd([[highlight DiagnosticUnderlineWarn gui=undercurl guisp=Purple]])
 end
 
--- Setup function that users can call to initialize the plugin
-function M.setup()
-  print("M.setup()")
-  M.setup_autocommands()
+function M.setup(user_config)
+  M.config = vim.tbl_extend("force", M.config, user_config or {})
+
+  setup_diagnostics()
+  setup_user_command(M.config.trim_command_name)
+
+  if M.config.auto_trim_on_write then
+    setup_auto_trimming()
+  end
 end
 
--- Return the module table
 return M
